@@ -6,7 +6,11 @@ function! I18nTranslateString()
   let text = s:removeQuotes(s:strip(@x))
   let variables = s:findInterpolatedVariables(text)
   let key = s:askForI18nKey()
-  let @x = s:generateI18nCall(key, variables)
+  if &filetype == 'eruby'
+    let @x = s:generateI18nCallErb(key, variables)
+  else
+    let @x = s:generateI18nCall(key, variables)
+  endif
   call s:addStringToYamlStore(text, key)
   " replace selection
   normal gv"xp
@@ -34,6 +38,14 @@ function! s:generateI18nCall(key, variables)
     return "I18n.t('" . a:key . "', " . s:generateI18nArguments(a:variables) . ")"
   else
     return "I18n.t('" . a:key . "')"
+  endif
+endfunction
+
+function! s:generateI18nCallErb(key, variables)
+  if len(a:variables) ># 0
+    return "<%= t('" . a:key . "', " . s:generateI18nArguments(a:variables) . ") %>"
+  else
+    return "<%= t('" . a:key . "') %>"
   endif
 endfunction
 
