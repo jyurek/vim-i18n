@@ -7,11 +7,13 @@ function! I18nTranslateString()
   let variables = s:findInterpolatedVariables(text)
   let key = s:askForI18nKey()
   if &filetype == 'eruby'
+    let fullKey = s:determineFullKey(key)
     let @x = s:generateI18nCallErb(key, variables)
+    call s:addStringToYamlStore(text, fullKey)
   else
     let @x = s:generateI18nCall(key, variables)
+    call s:addStringToYamlStore(text, key)
   endif
-  call s:addStringToYamlStore(text, key)
   " replace selection
   normal gv"xp
 endfunction
@@ -69,6 +71,15 @@ function! s:askForI18nKey()
   return key
 endfunction
 
+function! s:determineFullKey(key)
+  if match(a:key, '\.') == 0
+    let fullKey = expand("%:h:t") . '.' . expand("%:t:r:r") . a:key
+    return fullKey
+  else
+    return a:key
+  end
+endfunction
+
 function! s:addStringToYamlStore(text, key)
   let yaml_path = s:askForYamlPath()
   let cmd = s:install_path . "/add_yaml_key '" . yaml_path . "' '" . a:key . "' '" . a:text . "'"
@@ -89,4 +100,3 @@ function! s:askForYamlPath()
 endfunction
 
 vnoremap <leader>z :call I18nTranslateString()<CR>
-
