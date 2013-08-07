@@ -1,5 +1,10 @@
 let s:install_path=expand("<sfile>:p:h")
 
+function! IsSyntaxRuby()
+  let syntax = synIDattr(synID(line("'<"),col("'<"),1),"name")
+  return match(syntax, "ruby")
+endfunction
+
 function! I18nTranslateString()
   " copy last visual selection to x register
   normal gv"xy
@@ -8,10 +13,14 @@ function! I18nTranslateString()
   let key = s:askForI18nKey()
   if &filetype == 'eruby'
     let fullKey = s:determineFullKey(key)
-    let @x = s:generateI18nCallErb(key, variables)
+    if IsSyntaxRuby() != -1
+      let @x = s:generateI18nCall(key, variables, "t('", "')")
+    else
+      let @x = s:generateI18nCall(key, variables, "<%= t('", "') %>")
+    endif
     call s:addStringToYamlStore(text, fullKey)
   else
-    let @x = s:generateI18nCall(key, variables)
+    let @x = s:generateI18nCall(key, variables, "t('", "')")
     call s:addStringToYamlStore(text, key)
   endif
   " replace selection
@@ -35,19 +44,11 @@ function! s:findInterpolatedVariables(text)
   return interpolations
 endfunction
 
-function! s:generateI18nCall(key, variables)
+function! s:generateI18nCall(key, variables, pre, post)
   if len(a:variables) ># 0
-    return "I18n.t('" . a:key . "', " . s:generateI18nArguments(a:variables) . ")"
+    return a:pre . a:key . "', " . s:generateI18nArguments(a:variables) . a:post
   else
-    return "I18n.t('" . a:key . "')"
-  endif
-endfunction
-
-function! s:generateI18nCallErb(key, variables)
-  if len(a:variables) ># 0
-    return "<%= t('" . a:key . "', " . s:generateI18nArguments(a:variables) . ") %>"
-  else
-    return "<%= t('" . a:key . "') %>"
+    return a:pre . a:key . a:post
   endif
 endfunction
 
