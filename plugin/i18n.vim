@@ -73,7 +73,9 @@ endfunction
 
 function! s:determineFullKey(key)
   if match(a:key, '\.') == 0
-    let fullKey = expand("%:h:t") . '.' . expand("%:t:r:r") . a:key
+    let controller = expand("%:h:t")
+    let view = substitute(expand("%:t:r:r"), '^_', '', '')
+    let fullKey = controller . '.' . view . a:key
     return fullKey
   else
     return a:key
