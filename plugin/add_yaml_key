@@ -2,13 +2,24 @@
 # vim: ft=ruby:
 
 require "yaml"
+require "logger"
+
+begin
+  LOG = Logger.new("/usr/local/var/log/i18n.log")
+rescue
+  LOG = Logger.new(STDOUT)
+end
 
 class YAMLator
   attr_reader :hash
   attr_reader :data
 
   def initialize(data)
+    LOG.info("loading YAML")
     @data, @hash = data, YAML.load(data)
+    LOG.info("loaded YAML")
+  rescue Exception => e
+    LOG.error("ERROR in initialize: #{e}\n#{e.backtrace.join("\n\t")}")
   end
 
   def to_yaml
@@ -16,23 +27,26 @@ class YAMLator
   end
 
   def []=(key, value)
-    chain = key.split('.')
-    current_hash = hash
-    chain.each_with_index do |part, index|
-      is_last = index == chain.length - 1
-      key_this_far = chain[0..index].join('.')
-
-      case current_hash[part]
-      when Hash
-        raise("trying to add a string to a hash key in use: #{key_this_far.inspect}") if is_last
-      when String
-        raise("trying to add to a string key in use: #{key_this_far.inspect}")
-      else
-        current_hash[part] = is_last ? value : {}
+    begin
+      chain = key.split('.')
+      current_hash = hash
+      chain.each_with_index do |part, index|
+        is_last = index == chain.length - 1
+        key_this_far = chain[0..index].join('.')
+        case current_hash[part]
+        when Hash
+          raise("trying to add a string to a hash key in use: #{key_this_far.inspect}") if is_last
+        when String
+          raise("trying to add to a string key in use: #{key_this_far.inspect}")
+        else
+          current_hash[part] = is_last ? value : {}
+        end
+        current_hash = current_hash[part]
       end
-      current_hash = current_hash[part]
+      value
+    rescue => e
+      LOG.error("ERROR in []=: #{e}\n#{e.backtrace.join("\n\t")}")
     end
-    value
   end
 
   private
@@ -42,14 +56,19 @@ class YAMLator
   end
 end
 
+LOG.info("Start")
+
 file = ARGV[0]
 key = ARGV[1]
 value = ARGV[2]
 
 locale = File.basename(file, ".yml")[/[^\.]+$/]
 file_content = File.exists?(file) ? File.read(file) : "#{locale}:"
+LOG.info("creating YAML")
 yamlator = YAMLator.new(file_content)
+LOG.info("setting key #{key} to #{value}")
 yamlator[yamlator.hash.keys.first + "." + key] = value
 
-File.open(file, 'w') { |f| f.write yamlator.to_yaml }
+File.open(file, 'w') { |f| LOG.info("Writing"); f.write yamlator.to_yaml }
 
+LOG.info("Done")
